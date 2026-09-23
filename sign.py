@@ -1,21 +1,19 @@
 import os
 import time
 import random
+from datetime import datetime
 from playwright.sync_api import sync_playwright, Page
 
 # ====================== 配置区 ======================
 MAX_RETRY = 3  # 最大重试次数
-RANDOM_WAIT_MIN = 60   # 脚本启动后，随机等待最小秒数
-RANDOM_WAIT_MAX = 180  # 脚本启动后，随机等待最大秒数
+RANDOM_WAIT_MIN = 60   # 脚本启动后随机等待最小秒
+RANDOM_WAIT_MAX = 180  # 脚本启动后随机等待最大秒
 SAVE_SCREENSHOT_PATH = "error_screenshot.png"
-
-# XPATH
-ENTRY_XPATH = '//*[@id="__nuxt"]/div/div/div[1]/div[2]/div/div[1]/div[2]/div[4]/div[3]'
-SIGN_BTN_XPATH = '//*[@id="__nuxt"]/div/div/div[1]/div[2]/div/div[3]/div[2]/div/div/div[3]'
+SITE_DOMAIN = ".atkgear.com.cn"
+SITE_URL = "https://www.atkgear.com.cn/pointmall/mallcenter"
 # ====================================================
 
 def add_cookies(page: Page, cookie_str: str, domain: str):
-    """把字符串cookie转为playwright cookie字典数组"""
     cookies = []
     for item in cookie_str.split(";"):
         item = item.strip()
@@ -36,7 +34,7 @@ def run_sign():
         print("❌ 环境变量 user_cookie 为空，请检查仓库Secrets")
         return False
 
-    print(f"⏳ 随机等待 {RANDOM_WAIT_MIN} ~ {RANDOM_WAIT_MAX} 秒再开始签到")
+    print(f"⏳ 随机等待 {RANDOM_WAIT_MIN} ~ {RANDOM_WAIT_MAX} 秒后开始签到")
     random_sleep = random.randint(RANDOM_WAIT_MIN, RANDOM_WAIT_MAX)
     time.sleep(random_sleep)
 
@@ -45,38 +43,43 @@ def run_sign():
         context = browser.new_context(viewport={"width":1280, "height":720})
         page = context.new_page()
 
-        # =========【必须修改】替换为你的网站域名，例如 .xxx.com =========
-        site_domain = ".atkgear.com.cn/pointmall/mallcenter"
-        # =========【必须修改】替换网站主页URL =========
-        site_url = "https://www.atkgear.com.cn/pointmall/mallcenter"
-
-        # 设置cookie
-        add_cookies(page, cookie_str, site_domain)
-        page.goto(site_url, timeout=30000)
+        # 设置Cookie
+        add_cookies(page, cookie_str, SITE_DOMAIN)
+        print(f"🌐 访问页面 {SITE_URL}")
+        page.goto(SITE_URL, timeout=30000)
+        time.sleep(3)
 
         try:
-            # 1. 进入签到入口
-            print("🔍 寻找签到入口")
-            entry = page.wait_for_selector(f"xpath={ENTRY_XPATH}", timeout=15000)
-            entry.click()
-            time.sleep(2)
+            # 判断今日是否已经签到
+            already_sign_elem = page.locator("text=今日已签到")
+            if already_sign_elem.is_visible(timeout=5000):
+                print("✅ 检测到【今日已签到】，无需重复签到！")
+                browser.close()
+                return True
+        except Exception:
+            print("ℹ️ 未检测到今日已签到，准备执行签到")
 
-            # 2. 寻找签到按钮并点击
-            print("🔍 寻找签到按钮，准备点击")
-            sign_btn = page.wait_for_selector(f"xpath={SIGN_BTN_XPATH}", timeout=15000)
+        try:
+            # 定位【立即签到】按钮并点击
+            sign_btn = page.locator("text=签到日历")
+            sign_btn.wait_for(state="visible", timeout=15000)
             sign_btn.click()
-            time.sleep(3)
+            print("🖱️ 点击签到按钮成功，等待页面刷新")
+            time.sleep(4)
 
-            # ==========【你需要自行修改】签到成功判断文字 ==========
-            page.locator("text=签到成功").wait_for(timeout=5000)
-            print("✅ 签到执行成功！")
-            browser.close()
-            return True
+            # 点击后校验：是否变成今日已签到
+            if page.locator("text=今日已签到").is_visible(timeout=8000):
+                print("✅ 签到完成，页面显示今日已签到！")
+                browser.close()
+                return True
+            else:
+                raise Exception("点击签到按钮后，页面没有变成今日已签到，签到失败")
+
         except Exception as e:
-            print(f"⚠️ 本次签到失败: {e}")
-            # 失败截图
+            print(f"⚠️ 本次签到异常: {e}")
+            # 失败时全屏截图
             page.screenshot(path=SAVE_SCREENSHOT_PATH, full_page=True)
-            print(f"📸 错误截图已保存至 {SAVE_SCREENSHOT_PATH}")
+            print(f"📸 错误截图已保存: {SAVE_SCREENSHOT_PATH}")
             browser.close()
             return False
 
@@ -89,12 +92,12 @@ def main():
         success = run_sign()
         if success:
             break
-        print(f"等待10秒后重试...")
+        print(f"⏱️ 等待10秒后进行下一次重试...")
         time.sleep(10)
 
     if not success:
         print(f"❌ 已重试{MAX_RETRY}次，签到全部失败！")
-        exit(1)  # 返回非0，让Action标记任务失败
+        exit(1) # 非0退出，标记Action任务失败
 
 if __name__ == "__main__":
     main()
