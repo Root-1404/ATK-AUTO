@@ -21,7 +21,8 @@ def add_cookies(page: Page, cookie_str: str, domain: str):
     cookies = []
     for item in cookie_str.split(";"):
         item = item.strip()
-        if not item:
+        # 【修复】跳过空字符串 以及 没有等号的片段，防止split报错
+        if not item or "=" not in item:
             continue
         k, v = item.split("=", 1)
         cookies.append({
@@ -51,10 +52,19 @@ def run_sign() -> tuple[bool, str]:
         add_cookies(page, cookie_str, SITE_DOMAIN)
         print(f"🌐 访问页面 {SITE_URL}")
         page.goto(SITE_URL, timeout=30000)
-        time.sleep(3)
+        time.sleep(4)
 
+        # ========== 新增：点击签到日历，打开签到弹窗 ==========
+        print("🖱️ 寻找签到日历，点击打开签到弹窗")
+        # 定位签到日历入口，根据页面文字定位
+        calendar_btn = page.locator("text=签到日历")
+        calendar_btn.wait_for(state="visible", timeout=15000)
+        calendar_btn.click()
+        time.sleep(3)
+        print("✅ 签到弹窗已弹出")
+
+        # 判断今日是否已经签到
         try:
-            # 判断今日是否已经签到
             already_sign_elem = page.locator("text=今日已签到")
             if already_sign_elem.is_visible(timeout=5000):
                 browser.close()
@@ -63,11 +73,11 @@ def run_sign() -> tuple[bool, str]:
             print("ℹ️ 未检测到今日已签到，准备执行签到")
 
         try:
-            # 定位【签到日历】按钮并点击
-            sign_btn = page.locator("text=签到日历")
+            # 定位【立即签到】按钮并点击
+            sign_btn = page.locator("text=立即签到")
             sign_btn.wait_for(state="visible", timeout=15000)
             sign_btn.click()
-            print("🖱️ 点击【未签到】按钮成功，等待页面刷新")
+            print("🖱️ 点击【立即签到】按钮成功，等待页面刷新")
             time.sleep(4)
 
             # 点击后校验：是否变成今日已签到
@@ -99,7 +109,7 @@ def main():
         print(f"⏱️ 等待10秒后进行下一次重试...")
         time.sleep(10)
 
-    # ========== 最终日志汇总（重点输出） ==========
+    # ========== 最终日志汇总 ==========
     print("\n======================================")
     print("📌 ATK签到任务【最终结果】")
     print(f"🕒 执行时间: {datetime.now().strftime('%Y-%m-%d %H:%M:%S')}")
