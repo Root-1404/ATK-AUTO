@@ -1,39 +1,39 @@
 import requests
 import os
 
-# 从GitHub环境变量读取token
-token = os.getenv("ATK_TOKEN")
-if not token:
-    print("❌ 未读取到ATK_TOKEN，请检查仓库Secret配置")
-    exit(1)
+# token从环境变量读取，本地测试直接赋值
+token = os.getenv("ATK_TOKEN", "在此处填入你的JWT，不要加Bearer前缀")
 
 headers = {
     "Authorization": f"Bearer {token}",
     "Origin": "https://www.atkgear.com.cn",
     "Referer": "https://www.atkgear.com.cn/",
-    "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/114.0.0.0 Safari/537.36"
+    "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/153.0.0.0 Safari/537.36",
+    "client-type": "atk",
+    "env": "prod"
 }
 
-def atk_checkin():
-    url = "https://api.vxe.com/v1/user/checkin"
-    try:
-        resp = requests.post(url, headers=headers, timeout=15)
-        res_data = resp.json()
-        if resp.status_code == 200:
-            if res_data.get("data", {}).get("success") is True:
-                msg = res_data.get("data", {}).get("message", "")
-                if "已记录" in msg:
-                    print("✅ 签到成功！")
-                else:
-                    print(f"ℹ️ 接口返回：{msg}")
-            else:
-                print(f"⚠️ 签到失败：{res_data}")
-        elif resp.status_code == 401:
-            print("❌ Token已失效，请重新从浏览器复制新的Bearer Token！")
-        else:
-            print(f"❌ 请求异常，code:{resp.status_code}, 响应:{resp.text}")
-    except Exception as e:
-        print(f"❌ 网络异常：{str(e)}")
+def get_checkin_stats():
+    """获取签到统计：判断今日是否已经签到"""
+    url = "https://api.vxe.com/v1/member/checkin/stats"
+    resp = requests.get(url, headers=headers, timeout=20)
+    return resp.json()
+
+def do_checkin():
+    """执行签到 POST /v1/member/checkin"""
+    url = "https://api.vxe.com/v1/member/checkin"
+    resp = requests.post(url, headers=headers, timeout=20)
+    return resp.json()
 
 if __name__ == "__main__":
-    atk_checkin()
+    stats = get_checkin_stats()
+    print("📊 签到统计接口返回：")
+    print(stats)
+    data = stats.get("data", {})
+    if data.get("isCheckedInToday"):
+        print("\nℹ️ 今日已经完成签到，无需重复执行")
+    else:
+        print("\n🚀 开始执行签到...")
+        sign_result = do_checkin()
+        print("✅ 签到接口返回结果：")
+        print(sign_result)
