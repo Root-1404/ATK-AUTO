@@ -14,7 +14,7 @@ ENTRY_XPATH = '//*[@id="__nuxt"]/div/div/div[1]/div[2]/div/div[1]/div[2]/div[4]/
 SIGN_BTN_XPATH = '//*[@id="__nuxt"]/div/div/div[1]/div[2]/div/div[3]/div[2]/div/div/div[3]'
 # ====================================================
 
-def add_cookies(page: Page, cookie_str: str):
+def add_cookies(page: Page, cookie_str: str, domain: str):
     """把字符串cookie转为playwright cookie字典数组"""
     cookies = []
     for item in cookie_str.split(";"):
@@ -25,7 +25,7 @@ def add_cookies(page: Page, cookie_str: str):
         cookies.append({
             "name": k,
             "value": v,
-            "domain": ".atkgear.com.cn/pointmall/mallcenter", # !!!【重要】替换成目标网站域名，例如 .xxx.com
+            "domain": domain,
             "path": "/",
         })
     page.context.add_cookies(cookies)
@@ -41,14 +41,18 @@ def run_sign():
     time.sleep(random_sleep)
 
     with sync_playwright() as p:
-        browser = p.chromium.launch(headless=True)
+        browser = p.chromium.launch(headless=True, args=["--no-sandbox"])
         context = browser.new_context(viewport={"width":1280, "height":720})
         page = context.new_page()
 
+        # =========【必须修改】替换为你的网站域名，例如 .xxx.com =========
+        site_domain = ".example.com"
+        # =========【必须修改】替换网站主页URL =========
+        site_url = "https://example.com"
+
         # 设置cookie
-        add_cookies(page, cookie_str)
-        # !!!【重要】替换为目标网站主页URL
-        page.goto("https://www.atkgear.com.cn/pointmall/mallcenter")
+        add_cookies(page, cookie_str, site_domain)
+        page.goto(site_url, timeout=30000)
 
         try:
             # 1. 进入签到入口
@@ -63,17 +67,15 @@ def run_sign():
             sign_btn.click()
             time.sleep(3)
 
-            # ==========【你需要自行修改】签到成功判断逻辑 ==========
-            # 方案1：识别页面上“签到成功”文字，自行修改文字内容
-            success_text = page.locator("text=签到日历").wait_for(timeout=5000)
-            if success_text:
-                print("✅ 签到执行成功！")
-                browser.close()
-                return True
+            # ==========【你需要自行修改】签到成功判断文字 ==========
+            page.locator("text=签到成功").wait_for(timeout=5000)
+            print("✅ 签到执行成功！")
+            browser.close()
+            return True
         except Exception as e:
             print(f"⚠️ 本次签到失败: {e}")
             # 失败截图
-            page.screenshot(path=SAVE_SCREENSHOT_PATH)
+            page.screenshot(path=SAVE_SCREENSHOT_PATH, full_page=True)
             print(f"📸 错误截图已保存至 {SAVE_SCREENSHOT_PATH}")
             browser.close()
             return False
