@@ -1,7 +1,7 @@
-name: 每日随机签到
+name: ATK每日签到
 on:
   schedule:
-    - cron: '0 3 * * *' # UTC 3点 = 北京时间 11点，任务定时启动，脚本内部随机延时
+    - cron: '0 3 * * *' # UTC 3点 = 北京时间11点，定时拉起，脚本内部随机延时
   workflow_dispatch: # 支持手动点击测试
 
 jobs:
@@ -21,7 +21,6 @@ jobs:
           python -m pip install --upgrade pip
           pip install playwright
 
-      # 核心！自动安装chromium + 全部系统依赖，不再手动apt
       - name: 安装Playwright浏览器与系统依赖
         run: python -m playwright install chromium --with-deps
 
@@ -30,7 +29,7 @@ jobs:
           user_cookie: ${{ secrets.user_cookie }}
         run: python sign.py
 
-      # 失败时上传截图作为工件，可以在Action页面下载图片
+      # 任务失败上传截图工件
       - name: 上传错误截图
         if: failure()
         uses: actions/upload-artifact@v4
