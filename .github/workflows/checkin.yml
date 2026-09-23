@@ -1,27 +1,26 @@
 name: ATK Gear 每日签到
 on:
   schedule:
-    # UTC时间，下面是北京时间早8点（UTC 0点）执行，可自行修改
+    # UTC 0点 = 北京时间早上8点
     - cron: '0 0 * * *'
-  # 支持手动触发
   workflow_dispatch:
 
 jobs:
   checkin:
     runs-on: ubuntu-latest
     steps:
-      - name: 拉取代码
+      - name: 拉取脚本
         uses: actions/checkout@v4
 
-      - name: 设置Python
+      - name: 设置Python3.11
         uses: actions/setup-python@v5
         with:
           python-version: "3.11"
 
-      - name: 安装依赖requests
+      - name: 安装requests依赖
         run: pip install requests
 
-      - name: 执行签到脚本
+      - name: 运行签到脚本
         env:
           ATK_TOKEN: ${{ secrets.ATK_TOKEN }}
         run: python atk_check.py
