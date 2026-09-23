@@ -1,7 +1,7 @@
 name: ATK Gear 每日签到
 on:
   schedule:
-    # UTC 0点 = 北京时间早上8点
+    # UTC0点 = 北京时间早上8点
     - cron: '0 0 * * *'
   workflow_dispatch:
 
@@ -17,18 +17,23 @@ jobs:
         with:
           python-version: "3.11"
 
-      - name: 安装requests依赖
-        run: pip install requests
+      - name: 安装python依赖
+        run: |
+          pip install requests pyjwt playwright
+
+      - name: 安装playwright chromium系统依赖
+        run: |
+          playwright install chromium
+          playwright install-deps chromium
 
       - name: 运行签到脚本
         env:
           ATK_TOKEN: ${{ secrets.ATK_TOKEN }}
         run: python atk_check.py
 
-      # 任务失败上传截图工件
-      - name: 上传错误截图
-        if: failure()
+      # 可选：上传截图作为artifacts（可在Action页面下载截图）
+      - name: 上传签到截图
         uses: actions/upload-artifact@v4
         with:
-          name: error-screenshot
-          path: error_screenshot.png
+          name: atk-screenshot
+          path: ./screenshots/*.png
