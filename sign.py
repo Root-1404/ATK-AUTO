@@ -3,7 +3,10 @@ import time
 import random
 from datetime import datetime
 from playwright.sync_api import sync_playwright, Page
-
+import os
+# 启动前删除旧截图
+if os.path.exists("error_screenshot.png"):
+    os.remove("error_screenshot.png")
 # ====================== 配置区 ======================
 MAX_RETRY = 3  # 最大重试次数
 RANDOM_WAIT_MIN = 60   # 脚本启动后随机等待最小秒
