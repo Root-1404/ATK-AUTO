@@ -46,9 +46,9 @@ def run_sign():
         page = context.new_page()
 
         # =========【必须修改】替换为你的网站域名，例如 .xxx.com =========
-        site_domain = ".example.com"
+        site_domain = ".atkgear.com.cn/pointmall/mallcenter"
         # =========【必须修改】替换网站主页URL =========
-        site_url = "https://example.com"
+        site_url = "https://www.atkgear.com.cn/pointmall/mallcenter"
 
         # 设置cookie
         add_cookies(page, cookie_str, site_domain)
