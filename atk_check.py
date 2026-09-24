@@ -76,7 +76,8 @@ def take_status_screenshot_by_html(stats_data, profile_data, remain_days, remain
 
     d = stats_data.get("data", {})
     p_data = profile_data.get("data", {})
-    available_point = p_data.get("availablePoints", "获取失败")
+    available_point = p_data.get("quantity", "获取失败")
+    expire_point = p_data.get("aboutExpireQuantity", 0)
 
     html_content = f"""
     <!DOCTYPE html>
@@ -105,6 +106,7 @@ def take_status_screenshot_by_html(stats_data, profile_data, remain_days, remain
                 <div class="card-title">可用积分</div>
                 <div class="card-value">{available_point}</div>
             </div>
+            <p>即将过期积分：{expire_point}</p>
             <p>今日已签到：<span class="{'ok' if d.get('isCheckedInToday') else 'no'}">{d.get('isCheckedInToday')}</span></p>
             <p>累计签到天数：{d.get('totalDays')}</p>
             <p>当前连续签到：{d.get('currentConsecutiveDays')}</p>
