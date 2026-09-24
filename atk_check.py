@@ -39,6 +39,11 @@ def get_checkin_stats():
     resp = requests.get(url, headers=headers, timeout=20)
     return resp.json()
 
+def get_member_profile():
+    url = "https://api.vxe.com/v1/member/profile"
+    resp = requests.get(url, headers=headers, timeout=20)
+    return resp.json()
+
 def do_checkin():
     url = "https://api.vxe.com/v1/member/checkin"
     resp = requests.post(url, headers=headers, timeout=20)
@@ -62,8 +67,7 @@ def clean_old_screenshots(save_dir="./screenshots", keep_count=1):
             os.remove(path)
             print(f"🧹 删除旧截图: {os.path.basename(path)}")
 
-def take_status_screenshot_by_html(stats_data, save_dir="./screenshots"):
-    """生成本地HTML页面截图，不再访问ATK官网，避免卡在加载logo"""
+def take_status_screenshot_by_html(stats_data, profile_data, remain_days, remain_hours, note_text="", save_dir="./screenshots"):
     clean_old_screenshots(save_dir, keep_count=1)
     os.makedirs(save_dir, exist_ok=True)
     now_str = datetime.datetime.now().strftime("%Y%m%d_%H%M%S")
@@ -71,6 +75,9 @@ def take_status_screenshot_by_html(stats_data, save_dir="./screenshots"):
     html_path = os.path.join(save_dir, "temp.html")
 
     d = stats_data.get("data", {})
+    p_data = profile_data.get("data", {})
+    available_point = p_data.get("availablePoints", "获取失败")
+
     html_content = f"""
     <!DOCTYPE html>
     <html lang="zh-CN">
@@ -82,11 +89,22 @@ def take_status_screenshot_by_html(stats_data, save_dir="./screenshots"):
             .box {{border:1px solid #444;border-radius:12px;padding:24px;max-width:600px;margin:0 auto;}}
             .ok {{color:#4cd964;}}
             .no {{color:#ff3b30;}}
+            .info {{color:#74b9ff;}}
+            .warn {{color:#ff9500;}}
+            .card {{border:1px solid #EEE;border-radius:8px;padding:16px;margin-bottom:20px;background:#222;}}
+            .card-title {{font-size:16px;color:#aaa;margin-bottom:8px;}}
+            .card-value {{font-size:32px;font-weight:bold;}}
+            .note {{padding:8px;border-radius:6px;background:#333;margin:10px 0;color:#ffd166;}}
         </style>
     </head>
     <body>
         <div class="box">
             <h2>ATK Gear 签到状态</h2>
+            {f'<div class="note">执行备注：{note_text}</div>' if note_text else ''}
+            <div class="card">
+                <div class="card-title">可用积分</div>
+                <div class="card-value">{available_point}</div>
+            </div>
             <p>今日已签到：<span class="{'ok' if d.get('isCheckedInToday') else 'no'}">{d.get('isCheckedInToday')}</span></p>
             <p>累计签到天数：{d.get('totalDays')}</p>
             <p>当前连续签到：{d.get('currentConsecutiveDays')}</p>
@@ -94,6 +112,7 @@ def take_status_screenshot_by_html(stats_data, save_dir="./screenshots"):
             <p>总积分：{d.get('totalPoints')}</p>
             <p>上次签到日期：{d.get('lastCheckinDate')}</p>
             <p>下次奖励：{d.get('nextRewardDays')}天后，+{d.get('nextRewardPoints')}积分</p>
+            <p class="info">Token有效期剩余：{remain_days} 天 {remain_hours} 小时</p>
             <p>截图时间：{datetime.datetime.now().strftime('%Y-%m-%d %H:%M:%S')}</p>
         </div>
     </body>
@@ -123,18 +142,40 @@ if __name__ == "__main__":
             if remain_days < 3:
                 print("❗ 警告：Token剩余不足3天，请尽快更换！")
 
-    stats = get_checkin_stats()
-    print("\n📊 签到统计接口返回：")
-    print(stats)
-    data = stats.get("data", {})
+    # ===== 获取签到前状态 =====
+    stats_before = get_checkin_stats()
+    profile_before = get_member_profile()
+    print("\n📊【签到前】签到统计接口返回：")
+    print(stats_before)
+    print("\n👤【签到前】用户资料接口返回：")
+    print(profile_before)
 
-    # 改用本地HTML生成截图，不会卡在官网加载页
-    take_status_screenshot_by_html(stats)
+    data_before = stats_before.get("data", {})
 
-    if data.get("isCheckedInToday"):
+    if data_before.get("isCheckedInToday"):
         print("\nℹ️ 今日已经完成签到，无需重复执行")
+        take_status_screenshot_by_html(stats_before, profile_before, remain_days, remain_hours, note_text="无需签到，今日已签")
     else:
         print("\n🚀 开始执行签到...")
         sign_result = do_checkin()
         print("✅ 签到接口返回结果：")
         print(sign_result)
+        # ===== 签到完成，重新拉取最新状态 =====
+        time.sleep(2)
+        stats_after = get_checkin_stats()
+        profile_after = get_member_profile()
+        print("\n📊【签到后】签到统计接口返回：")
+        print(stats_after)
+        print("\n👤【签到后】用户资料接口返回：")
+        print(profile_after)
+
+        # 校验签到结果
+        data_after = stats_after.get("data", {})
+        if data_after.get("isCheckedInToday") is True:
+            print("\n✅ 校验通过：签到成功，isCheckedInToday已更新为true")
+            note = "已执行一次签到请求，校验签到成功"
+        else:
+            print("\n⚠️⚠️⚠️ 校验告警：已经调用签到接口，但isCheckedInToday仍然为false！可能受UTC时区限制/接口异常！")
+            note = "⚠️校验告警：调用签到后状态未变更，注意UTC时区问题"
+
+        take_status_screenshot_by_html(stats_after, profile_after, remain_days, remain_hours, note_text=note)
