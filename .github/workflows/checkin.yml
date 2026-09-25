@@ -11,18 +11,18 @@ jobs:
       - name: 拉取脚本
         uses: actions/checkout@v4
 
-      - name: 设置Python3.11
+      - name: 设置Python 3.11
         uses: actions/setup-python@v5
         with:
           python-version: "3.11"
 
-      - name: 定时任务才随机延时，手动触发跳过等待
+      - name: 生成随机等待秒数(0‑14400秒，最大4小时)
         if: github.event_name == 'schedule'
         id: random_wait
         run: |
-          python -c "import random; t=random.randint(0,14400); print(f'wait_seconds={t}') >> $GITHUB_OUTPUT"
+          python -c "import random; t=random.randint(0,14400); print('wait_seconds=' + str(t)) >> $GITHUB_OUTPUT"
 
-      - name: 执行随机sleep（仅定时调度）
+      - name: 随机延时sleep
         if: github.event_name == 'schedule'
         run: sleep ${{ steps.random_wait.outputs.wait_seconds }}
         shell: bash
