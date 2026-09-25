@@ -20,13 +20,14 @@ jobs:
         if: github.event_name == 'schedule'
         id: random_wait
         run: |
-          python -c "import random; t=random.randint(0,14400); print('wait_seconds=' + str(t)) >> $GITHUB_OUTPUT"
+          t=$(( RANDOM % 14400 ))
+          echo "wait_seconds=$t" >> $GITHUB_OUTPUT
 
       - name: 随机延时sleep
         if: github.event_name == 'schedule'
         run: sleep ${{ steps.random_wait.outputs.wait_seconds }}
         shell: bash
-
+        
       - name: 安装python依赖
         run: |
           pip install requests pyjwt playwright
